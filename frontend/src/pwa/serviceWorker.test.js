@@ -38,16 +38,17 @@ describe('Toolbox service worker', () => {
     const response = await harness.dispatchFetch({
       method: 'GET',
       mode: 'navigate',
-      url: 'https://toolbox.localhost/calculator',
+      url: 'https://toolbox.localhost/toolbox/calculator',
     })
 
     expect(response.status).toBe(200)
     expect(await response.text()).toContain('<div id="app"></div>')
   })
 
-  // At the site root the worker sees every navigation on the origin, including Frappe's own
-  // pages. Handing /app or /login the Toolbox shell would break the desk and the login form,
-  // online as well as offline. The worker matches an exact route set for this reason.
+  // The worker is registered on an origin shared with other apps, so it sees every navigation on
+  // the site, including the other apps' pages. Handing /app or /login the Toolbox shell would
+  // break the desk and the login form, online as well as offline. The worker matches an exact
+  // route set under its own prefix for this reason.
   it('ignores navigation to a path the app does not own', async () => {
     await harness.dispatchExtendable('install')
     harness.server.failRequests = true

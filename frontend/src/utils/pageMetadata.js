@@ -1,5 +1,11 @@
 import { tools } from '@/data/toolRegistry'
 
+// The application is published under a prefix, so a canonical URL is the prefix and the route.
+// `toolbox/routes.py` and `frontend/build/appRoutes.js` hold the same value; this file cannot
+// import either, because the client is what they are the sources for. `appRoutes.test.js` fails
+// when they disagree.
+const ROUTE_PREFIX = '/toolbox'
+
 // Frappe puts every route's title here, from toolbox/seo.py, through the boot payload. The
 // client repeats the server's own text rather than composing a second version of it: a crawler
 // reads the served HTML and then renders the page, so two titles for one page is a contradiction
@@ -27,7 +33,8 @@ export function resolveTitle(path, titles = globalThis.toolbox_page_titles) {
 // The origin is passed in rather than defaulted, because a default parameter would hide the one
 // case worth handling: no location at all.
 export function resolveCanonical(path, origin) {
-  return origin ? `${origin}${path}` : path
+  const published = path === '/' ? ROUTE_PREFIX : `${ROUTE_PREFIX}${path}`
+  return origin ? `${origin}${published}` : published
 }
 
 export function applyPageMetadata(path, documentRef = globalThis.document) {

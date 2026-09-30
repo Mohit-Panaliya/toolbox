@@ -61,7 +61,7 @@ class TestServerRenderedMetadata(UnitTestCase):
 	"""One template serves every route, so the head has to come from the path that was asked for."""
 
 	def test_the_head_describes_the_requested_tool(self):
-		with requested("/dictionary"):
+		with requested("/toolbox/dictionary"):
 			context = get_context()
 
 		self.assertEqual(context.seo["title"], seo.PAGES["/dictionary"].title)
@@ -69,24 +69,26 @@ class TestServerRenderedMetadata(UnitTestCase):
 
 	def test_two_routes_do_not_share_a_head(self):
 		"""The whole change exists because every route used to answer with the same title."""
-		with requested("/calculator"):
+		with requested("/toolbox/calculator"):
 			calculator = get_context().seo
-		with requested("/dictionary"):
+		with requested("/toolbox/dictionary"):
 			dictionary = get_context().seo
 
 		self.assertNotEqual(calculator["title"], dictionary["title"])
 		self.assertNotEqual(calculator["description"], dictionary["description"])
 		self.assertNotEqual(calculator["canonical"], dictionary["canonical"])
 
-	def test_the_root_is_served_without_a_request_path(self):
-		with requested(""):
-			context = get_context()
-
-		self.assertEqual(context.seo["title"], seo.PAGES["/"].title)
+	def test_the_front_door_is_the_prefix_root(self):
+		"""`/toolbox` names the All Tools page, and the site root belongs to whatever else the
+		site runs, so an empty path is not a request this app can be asked for."""
+		for path in ("/toolbox", "/toolbox/", "toolbox", ""):
+			with self.subTest(path=path):
+				with requested(path):
+					self.assertEqual(get_context().seo["title"], seo.PAGES["/"].title)
 
 	def test_the_client_is_given_the_server_titles(self):
 		"""An in-app navigation brings no new server response, so the client repeats these."""
-		with requested("/"):
+		with requested("/toolbox"):
 			titles = get_context().boot["toolbox_page_titles"]
 
 		self.assertEqual(titles, seo.route_titles())
@@ -99,42 +101,43 @@ class TestServerRenderedContent(UnitTestCase):
 	def test_every_page_is_given_its_heading(self):
 		"""The heading comes from seo.py, so a page that is not a tool has one too."""
 		for path, name in (
-			("/dictionary", "Dictionary"),
-			("/data-sources", "Where the data comes from"),
-			("", "All tools"),
+			("/toolbox/dictionary", "Dictionary"),
+			("/toolbox/data-sources", "Where the data comes from"),
+			("/toolbox", "All tools"),
 		):
 			with self.subTest(path=path):
 				with requested(path):
 					self.assertEqual(get_context().seo["name"], name)
 
-	def test_the_root_is_given_a_link_to_every_tool(self):
-		"""A crawler that runs no JavaScript reads an empty body at the root otherwise."""
-		with requested(""):
+	def test_the_front_door_is_given_a_link_to_every_tool(self):
+		"""A crawler that runs no JavaScript reads an empty body there otherwise."""
+		with requested("/toolbox"):
 			links = get_context().seo["tool_links"]
-		with requested("/dictionary"):
+		with requested("/toolbox/dictionary"):
 			self.assertEqual(get_context().seo["tool_links"], [])
 
 		self.assertEqual(len(links), len(TOOL_ROUTES))
-		self.assertIn({"name": "Dictionary", "path": "/dictionary"}, links)
+		# The path is published, not the bare route: a href a crawler follows has to be real.
+		self.assertIn({"name": "Dictionary", "path": "/toolbox/dictionary"}, links)
 
 	def test_a_written_page_carries_its_content(self):
-		with requested("/emi-calculator"):
+		with requested("/toolbox/emi-calculator"):
 			content = get_context().page_content
 
 		self.assertIn("Frequently asked questions", content.content)
 		self.assertTrue(content.faqs)
 
 	def test_two_routes_do_not_share_content(self):
-		with requested("/calculator"):
+		with requested("/toolbox/calculator"):
 			calculator = get_context().page_content
-		with requested("/emi-calculator"):
+		with requested("/toolbox/emi-calculator"):
 			emi = get_context().page_content
 
 		self.assertNotEqual(calculator.content, emi.content)
 
 	def test_a_page_without_content_renders_none(self):
 		"""The template asks whether there is content. An empty block is not the same as none."""
-		with requested("/settings"):
+		with requested("/toolbox/settings"):
 			self.assertIsNone(get_context().page_content)
-		with requested(""):
+		with requested("/toolbox"):
 			self.assertIsNone(get_context().page_content)

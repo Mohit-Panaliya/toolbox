@@ -9,24 +9,29 @@ app_license = "agpl-3.0"
 
 app_icon_url = "/assets/toolbox/toolbox-logo.svg"
 app_icon_title = "Toolbox"
-app_icon_route = "/"
+app_icon_route = toolbox_routes.ROUTE_PREFIX
+
+# Where the desk sends a user who picks Toolbox. Namespaced, because the site root belongs to
+# whatever else this site runs. Frappe 16 spells this hook `app_home`; `app_route` is the Frappe 17
+# name and is ignored here.
+app_home = toolbox_routes.ROUTE_PREFIX
 
 add_to_apps_screen = [
 	{
 		"name": "toolbox",
 		"logo": "/assets/toolbox/toolbox-logo.svg",
 		"title": "Toolbox",
-		"route": "/",
+		"route": toolbox_routes.ROUTE_PREFIX,
 	}
 ]
 
-# Toolbox owns the whole site, so its tools sit directly under `/`. See toolbox/routes.py for why
-# the rules are an explicit list rather than a catch-all, and why `/` is a hook instead of a rule.
+# Every path the app answers for sits under its prefix, so nothing here can claim a page the host
+# site serves. See toolbox/routes.py for why the rules are an explicit list rather than a catch-all.
 website_route_rules = toolbox_routes.website_route_rules()
 website_redirects = toolbox_routes.website_redirects()
-# `/` never reaches the route map: resolve_path turns an empty path into `index` and asks
-# get_home_page() instead. This hook is a literal page name, and it is what puts the app there.
-website_user_home_page = toolbox_routes.WEB_PAGE
+# `website_user_home_page` is deliberately absent. Setting it is what put the app at `/` upstream,
+# and on a site that also runs ERPNext that would replace the home page for every user. `/toolbox`
+# is an ordinary route rule instead, so the site's own home page is untouched.
 
 # Send non-GET requests for this app's endpoints as native `application/json`
 # bodies instead of form-encoded, per-key JSON-stringified values.

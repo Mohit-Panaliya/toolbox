@@ -63,10 +63,12 @@ class TestDictionaryApi(UnitTestCase):
 		for endpoint in (get_dataset_status, lookup, suggest):
 			with self.subTest(endpoint=endpoint.__name__):
 				self.assertIn(endpoint, frappe.guest_methods)
-				self.assertEqual(
-					frappe.allowed_http_methods_for_whitelisted_func[endpoint],
-					("GET", "QUERY"),
-				)
+				# GET is a read and QUERY is the same read, so the check is that GET is allowed and
+				# no write verb is. Frappe 16 stores the list as it was declared (`["GET"]`); 17
+				# widens it to `("GET", "QUERY")`.
+				allowed = set(frappe.allowed_http_methods_for_whitelisted_func[endpoint])
+				self.assertIn("GET", allowed)
+				self.assertFalse(allowed & {"POST", "PUT", "PATCH", "DELETE"})
 
 	def test_lookup_and_suggest_reject_empty_and_unbounded_queries(self) -> None:
 		for endpoint in (lookup, suggest):

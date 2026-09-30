@@ -1,5 +1,5 @@
 from frappe.model.document import Document
 
 
-class ToolboxPinRecord(Document):
+class ToolboxPINRecord(Document):
 	pass

@@ -204,9 +204,12 @@ class TestCurrencyRateService(UnitTestCase):
 	def test_public_endpoint_is_guest_get_only(self) -> None:
 		self.assertIn(get_reference_rates, frappe.whitelisted)
 		self.assertIn(get_reference_rates, frappe.guest_methods)
-		self.assertEqual(
-			frappe.allowed_http_methods_for_whitelisted_func[get_reference_rates], ("GET", "QUERY")
-		)
+		# GET is a read and QUERY is the same read, so the check is that GET is allowed and no
+		# write verb is. Frappe 16 stores the list as it was declared (`["GET"]`); 17 widens it to
+		# `("GET", "QUERY")`.
+		allowed = set(frappe.allowed_http_methods_for_whitelisted_func[get_reference_rates])
+		self.assertIn("GET", allowed)
+		self.assertFalse(allowed & {"POST", "PUT", "PATCH", "DELETE"})
 
 	@staticmethod
 	def _cached(checked_at: datetime) -> dict[str, object]:

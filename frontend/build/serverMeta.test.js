@@ -75,7 +75,7 @@ describe('the server content block', () => {
     expect(contentBlock).toContain('{%- if page_content %}')
   })
 
-  it('lists every tool at the root, and nowhere else', () => {
+  it('lists every tool on the front door, and nowhere else', () => {
     expect(contentBlock).toContain('{%- if seo.tool_links %}')
     expect(contentBlock).toContain('href="{{ link.path | e }}"')
   })

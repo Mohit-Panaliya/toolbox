@@ -10,6 +10,11 @@ This module imports nothing from Frappe. The copy is the product, it is worth te
 and a plain function that takes a base URL is easier to test than one that reads a request. The
 same reasoning keeps it free of Frappe imports.
 
+`PAGES` is keyed by the application's own route (`/calculator`), never by the path it is published
+at. The prefix belongs to `toolbox/routes.py`, which owns where a route lives; this module asks
+it to turn a route into a URL. That keeps the client, which knows only routes, and the server, which
+has to name a path, from disagreeing about the same page.
+
 `toolbox/tests/test_seo.py` fails when this module and `toolbox/routes.py` disagree about which
 routes exist. That is the tripwire `frontend/src/data/appRoutes.test.js` already applies to the
 route list itself: a tool added in one place and forgotten in another is invisible to every other
@@ -20,7 +25,7 @@ import json
 from dataclasses import dataclass
 
 from toolbox import tool_content
-from toolbox.routes import APP_ROUTES, TOOL_ROUTES
+from toolbox.routes import APP_ROUTES, TOOL_ROUTES, route_path, strip_prefix
 
 SITE_NAME = "Toolbox"
 PUBLISHER_NAME = "Frappe Technologies"
@@ -32,6 +37,8 @@ CARD_IMAGE = "/assets/toolbox/seo/toolbox-card.png"
 CARD_IMAGE_WIDTH = "1200"
 CARD_IMAGE_HEIGHT = "630"
 
+# The All Tools page, as a route. It is the front door of the application but not of the site: it
+# is published at `ROUTE_PREFIX`, and every URL built from it goes through `route_url`.
 ROOT_PATH = "/"
 
 
@@ -406,7 +413,7 @@ def page_metadata(path: str, base_url: str) -> dict[str, str]:
 		"name": page.name,
 		"title": page.title,
 		"description": page.description,
-		"canonical": absolute_url(base_url, route),
+		"canonical": route_url(base_url, route),
 		"robots": "index, follow" if page.indexable else "noindex, follow",
 		"site_name": SITE_NAME,
 		"image": absolute_url(base_url, CARD_IMAGE),
@@ -418,13 +425,15 @@ def page_metadata(path: str, base_url: str) -> dict[str, str]:
 
 
 def tool_links() -> list[dict[str, str]]:
-	"""Every tool, as a link, for the root to render.
+	"""Every tool, as a link, for the All Tools page to render.
 
-	The root is the front door and the only page that lists them all. Without this a crawler that
+	That page is the front door and the only page that lists them all. Without this a crawler that
 	runs no JavaScript reads an empty body there and reaches a tool only through the sitemap, which
 	carries a URL and no words. A link carries the name of what it points at.
+
+	The path is published, so it carries the prefix; a href a browser follows has to be a real one.
 	"""
-	return [{"name": PAGES[f"/{route}"].name, "path": f"/{route}"} for route in TOOL_ROUTES]
+	return [{"name": PAGES[f"/{route}"].name, "path": route_path(route)} for route in TOOL_ROUTES]
 
 
 def route_titles() -> dict[str, str]:
@@ -440,15 +449,25 @@ def route_titles() -> dict[str, str]:
 def normalise_path(path: str) -> str:
 	"""Turn a requested path into the key `PAGES` uses.
 
-	Frappe hands this module a path with no leading slash for a route rule, and the empty string
-	for the root. A trailing slash is the visitor's, and names the same page.
+	Frappe hands this module a path with no leading slash for a route rule, the request carries
+	the published path with it, and a trailing slash is the visitor's. All of them name one route,
+	and `strip_prefix` is what reduces them to it.
 	"""
-	return "/" + (path or "").strip().strip("/")
+	return "/" + strip_prefix(path)
 
 
 def absolute_url(base_url: str, path: str) -> str:
-	"""Join the site origin to a path. A canonical URL and an image URL both have to be absolute."""
+	"""Join the site origin to a path under the site's own root, such as an asset."""
 	return base_url.rstrip("/") + path
+
+
+def route_url(base_url: str, route: str) -> str:
+	"""Join the site origin to where a route is published.
+
+	A canonical URL, a sitemap entry and a link a browser follows all have to name the path, so
+	they all go through here. An asset is not a route and keeps `absolute_url`.
+	"""
+	return absolute_url(base_url, route_path(route))
 
 
 def structured_data(route: str, page: Page, base_url: str) -> list[dict]:
@@ -478,7 +497,7 @@ def website_schema(base_url: str) -> dict:
 		"@context": "https://schema.org",
 		"@type": "WebSite",
 		"name": SITE_NAME,
-		"url": absolute_url(base_url, ROOT_PATH),
+		"url": route_url(base_url, ROOT_PATH),
 		"description": PAGES[ROOT_PATH].description,
 		"publisher": publisher_schema(),
 	}
@@ -496,7 +515,7 @@ def tool_list_schema(base_url: str) -> dict:
 				"@type": "ListItem",
 				"position": position,
 				"name": PAGES[f"/{route}"].name,
-				"url": absolute_url(base_url, f"/{route}"),
+				"url": route_url(base_url, f"/{route}"),
 			}
 			for position, route in enumerate(TOOL_ROUTES, start=1)
 		],
@@ -513,7 +532,7 @@ def web_application_schema(route: str, page: Page, base_url: str) -> dict:
 		"@context": "https://schema.org",
 		"@type": "WebApplication",
 		"name": page.name,
-		"url": absolute_url(base_url, route),
+		"url": route_url(base_url, route),
 		"description": page.description,
 		"applicationCategory": page.application_category,
 		"operatingSystem": "Any",
@@ -522,7 +541,7 @@ def web_application_schema(route: str, page: Page, base_url: str) -> dict:
 		"isPartOf": {
 			"@type": "WebSite",
 			"name": SITE_NAME,
-			"url": absolute_url(base_url, ROOT_PATH),
+			"url": route_url(base_url, ROOT_PATH),
 		},
 		"publisher": publisher_schema(),
 	}
@@ -576,13 +595,13 @@ def breadcrumb_schema(route: str, page: Page, base_url: str) -> dict:
 				"@type": "ListItem",
 				"position": 1,
 				"name": SITE_NAME,
-				"item": absolute_url(base_url, ROOT_PATH),
+				"item": route_url(base_url, ROOT_PATH),
 			},
 			{
 				"@type": "ListItem",
 				"position": 2,
 				"name": page.name,
-				"item": absolute_url(base_url, route),
+				"item": route_url(base_url, route),
 			},
 		],
 	}

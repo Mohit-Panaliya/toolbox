@@ -64,7 +64,7 @@ class TestPageMetadata(UnitTestCase):
 		metadata = seo.page_metadata("/dictionary", BASE_URL)
 
 		self.assertEqual(metadata["title"], seo.PAGES["/dictionary"].title)
-		self.assertEqual(metadata["canonical"], "https://frappe.tools/dictionary")
+		self.assertEqual(metadata["canonical"], "https://frappe.tools/toolbox/dictionary")
 		self.assertEqual(metadata["robots"], "index, follow")
 		self.assertEqual(metadata["image"], f"{BASE_URL}{seo.CARD_IMAGE}")
 
@@ -90,13 +90,13 @@ class TestPageMetadata(UnitTestCase):
 		metadata = seo.page_metadata("/not-a-tool", BASE_URL)
 
 		self.assertEqual(metadata["title"], seo.PAGES["/"].title)
-		self.assertEqual(metadata["canonical"], "https://frappe.tools/")
+		self.assertEqual(metadata["canonical"], "https://frappe.tools/toolbox")
 
 	def test_the_canonical_follows_the_host_that_was_asked(self):
 		"""A preview deployment declares itself canonical rather than pointing at production."""
 		metadata = seo.page_metadata("/calculator", "https://toolbox.localhost:8100")
 
-		self.assertEqual(metadata["canonical"], "https://toolbox.localhost:8100/calculator")
+		self.assertEqual(metadata["canonical"], "https://toolbox.localhost:8100/toolbox/calculator")
 
 	def test_every_route_is_given_the_name_the_page_shows(self):
 		"""The server renders this as the `<h1>`, so it is what a crawler reads first."""
@@ -109,8 +109,13 @@ class TestPageMetadata(UnitTestCase):
 		"""The front door is where a link to every tool costs least, and where it is needed."""
 		links = seo.page_metadata("/", BASE_URL)["tool_links"]
 
-		self.assertEqual([link["path"] for link in links], [f"/{route}" for route in TOOL_ROUTES])
-		self.assertEqual(links[0]["name"], seo.PAGES[links[0]["path"]].name)
+		self.assertEqual(
+			[link["path"] for link in links],
+			[f"/toolbox/{route}" for route in TOOL_ROUTES],
+		)
+		# `PAGES` is keyed by route and the paths are published, so the cross-check reads the entry
+		# for the route the first link stands for rather than for its published path.
+		self.assertEqual(links[0]["name"], seo.PAGES[f"/{TOOL_ROUTES[0]}"].name)
 		self.assertEqual(seo.page_metadata("/dictionary", BASE_URL)["tool_links"], [])
 		self.assertEqual(seo.page_metadata("/settings", BASE_URL)["tool_links"], [])
 
@@ -130,7 +135,7 @@ class TestStructuredData(UnitTestCase):
 		self.assertEqual(tool_list["numberOfItems"], len(TOOL_ROUTES))
 		self.assertEqual(
 			[item["url"] for item in tool_list["itemListElement"]],
-			[f"{BASE_URL}/{route}" for route in TOOL_ROUTES],
+			[f"{BASE_URL}/toolbox/{route}" for route in TOOL_ROUTES],
 		)
 		self.assertEqual(
 			[item["position"] for item in tool_list["itemListElement"]],
@@ -146,7 +151,7 @@ class TestStructuredData(UnitTestCase):
 		)
 
 		application = documents[0]
-		self.assertEqual(application["url"], f"{BASE_URL}/gst-calculator")
+		self.assertEqual(application["url"], f"{BASE_URL}/toolbox/gst-calculator")
 		self.assertEqual(application["applicationCategory"], "FinanceApplication")
 		# The price is stated rather than implied. It is what puts the word free in a result.
 		self.assertEqual(application["offers"]["price"], "0")
@@ -154,7 +159,7 @@ class TestStructuredData(UnitTestCase):
 		breadcrumb = documents[1]["itemListElement"]
 		self.assertEqual(
 			[step["item"] for step in breadcrumb],
-			[f"{BASE_URL}/", f"{BASE_URL}/gst-calculator"],
+			[f"{BASE_URL}/toolbox", f"{BASE_URL}/toolbox/gst-calculator"],
 		)
 
 	def test_every_tool_produces_valid_json(self):
@@ -257,7 +262,7 @@ class TestHeadEscaping(UnitTestCase):
 		block = head.split('<script type="application/ld+json">')[1].split("</script>")[0]
 
 		documents = json.loads(block)
-		self.assertEqual(documents[0]["url"], f"{self.HOSTILE}/")
+		self.assertEqual(documents[0]["url"], f"{self.HOSTILE}/toolbox")
 
 	def test_an_ordinary_host_renders_one_title(self):
 		head = frappe.render_template(
@@ -265,4 +270,4 @@ class TestHeadEscaping(UnitTestCase):
 		)
 
 		self.assertIn(f"<title>{seo.PAGES['/timer'].title}</title>", head)
-		self.assertIn('<link rel="canonical" href="https://frappe.tools/timer" />', head)
+		self.assertIn('<link rel="canonical" href="https://frappe.tools/toolbox/timer" />', head)

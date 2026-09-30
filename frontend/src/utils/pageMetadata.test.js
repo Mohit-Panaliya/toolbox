@@ -27,12 +27,20 @@ describe('resolveTitle', () => {
 
 describe('resolveCanonical', () => {
   it('makes an absolute URL from the origin the visitor is on', () => {
-    expect(resolveCanonical('/timer', 'https://frappe.tools')).toBe('https://frappe.tools/timer')
+    expect(resolveCanonical('/timer', 'https://frappe.tools')).toBe(
+      'https://frappe.tools/toolbox/timer',
+    )
   })
 
-  it('returns the path when there is no origin to join it to', () => {
-    expect(resolveCanonical('/timer', undefined)).toBe('/timer')
-    expect(resolveCanonical('/timer', '')).toBe('/timer')
+  it('names the prefix rather than the site root', () => {
+    // A route is the app's own vocabulary; the prefix is where it is published. A canonical built
+    // from the route alone would point at a page this app does not serve.
+    expect(resolveCanonical('/', 'https://frappe.tools')).toBe('https://frappe.tools/toolbox')
+  })
+
+  it('returns the published path when there is no origin to join it to', () => {
+    expect(resolveCanonical('/timer', undefined)).toBe('/toolbox/timer')
+    expect(resolveCanonical('/timer', '')).toBe('/toolbox/timer')
   })
 })
 
@@ -46,7 +54,7 @@ describe('applyPageMetadata', () => {
     expect(document.title).toBe('Online Timer — Count Down From Any Number of Minutes')
     // A canonical still naming the entry route tells a crawler every page is really that one.
     expect(document.querySelector('link[rel="canonical"]').getAttribute('href')).toBe(
-      `${globalThis.location.origin}/timer`,
+      `${globalThis.location.origin}/toolbox/timer`,
     )
   })
 

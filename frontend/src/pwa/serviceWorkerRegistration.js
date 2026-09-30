@@ -1,5 +1,8 @@
 export const SERVICE_WORKER_URL = '/toolbox-sw.js'
-export const SERVICE_WORKER_SCOPE = '/'
+// The worker is served from the site root, but it controls only Toolbox's own paths. A scope of `/`
+// would put this worker in front of every page on a site that also runs other apps, and the first
+// thing it would break is a host application's own offline story.
+export const SERVICE_WORKER_SCOPE = '/toolbox/'
 
 export class ToolboxServiceWorkerManager {
   constructor({ browserWindow = window, browserNavigator = navigator, callbacks = {} } = {}) {

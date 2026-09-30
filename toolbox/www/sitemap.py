@@ -1,4 +1,5 @@
 import frappe
+from frappe.website.router import get_pages
 
 from toolbox import seo
 
@@ -7,16 +8,27 @@ base_template_path = "www/sitemap.xml"
 
 
 def get_context(context):
-	"""List every Toolbox page a crawler should fetch.
+	"""List every Toolbox page a crawler should fetch, and the host site's own pages.
 
-	This replaces Frappe's own sitemap, which is built from its page list and from DocTypes with
-	a web view. Toolbox tools are website route rules, so none of them appeared, and the sitemap
-	offered Frappe's stock `/about` and `/contact` instead. `TemplatePage` searches installed
-	apps in reverse order, and Toolbox is installed after Frappe, so this file wins.
+	Upstream, this replaced Frappe's sitemap outright, because on a site that is all Toolbox
+	exists the stock `/about` and `/contact` are worse than nothing. Here it shares an origin with
+	ERPNext, so replacing the list would drop every page the host application publishes. The two
+	are therefore merged: Toolbox's routes first, then Frappe's own pages, each URL once.
 
 	There is no `lastmod`. Frappe's sitemap stamps every entry with today's date, which tells a
 	crawler that all of these pages changed today, every day. A date that is always wrong is
 	worse than no date: a crawler that stops trusting it discounts the real ones later.
 	"""
 	base_url = frappe.utils.get_url()
-	return {"links": [seo.absolute_url(base_url, route) for route in seo.indexable_routes()]}
+	links = [seo.route_url(base_url, route) for route in seo.indexable_routes()]
+	seen = set(links)
+
+	for page in get_pages().values():
+		if not page.sitemap:
+			continue
+		link = frappe.utils.get_url(frappe.utils.quote(page.name.encode("utf-8")))
+		if link not in seen:
+			seen.add(link)
+			links.append(link)
+
+	return {"links": links}

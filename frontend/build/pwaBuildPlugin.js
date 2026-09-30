@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { appRoutes } from './appRoutes.js'
+import { serviceWorkerRoutes } from './appRoutes.js'
 import { buildToolContent } from './toolContent/build.js'
 
 const RELEASE_ID_PLACEHOLDER = '__TOOLBOX_RELEASE_ID__'
@@ -106,10 +106,10 @@ export function createReleaseInfo({ now = new Date(), randomSuffix } = {}) {
 }
 
 // The tool registry is the single source of truth for what the app serves. Reading it here keeps
-// the worker's route set exact, which matters at the site root: a prefix test would let the worker
-// claim Frappe's own /app and /login pages.
+// the worker's route set exact, which matters because the worker runs on an origin that belongs to
+// more than this app: a prefix test would claim the host site's own pages.
 export async function readAppRoutes() {
-  return appRoutes()
+  return serviceWorkerRoutes()
 }
 
 export function renderServiceWorker(template, releaseInfo, appRoutes) {

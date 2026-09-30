@@ -34,6 +34,12 @@ venv.bak/
 
 # Dependency directories
 node_modules/
+# `bench build` symlinks the app's node_modules into public/ so the asset build can resolve
+# imports. It is a symlink rather than a directory, so the rule above does not match it.
+toolbox/public/node_modules
+# `bench get-app` writes this at the app root, where the root package.json carries no
+# dependencies of its own. The lockfile that matters is frontend/yarn.lock.
+yarn.lock
 jspm_packages/
 playwright-report/
 test-results/

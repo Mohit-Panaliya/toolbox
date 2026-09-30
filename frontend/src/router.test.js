@@ -4,6 +4,18 @@ import { tools } from '@/data/toolRegistry'
 import router from './router'
 
 describe('generated routes', () => {
+  it('publishes the routes under the prefix rather than at the site root', () => {
+    // The base is what turns a route into a URL a browser asks for. It has to be the same prefix
+    // Frappe routes, the manifest scopes and the service worker claims: where any two of those
+    // disagree, the app loads and every navigation 404s.
+    // Vue Router keeps the base without its trailing slash, and adds one to every href it builds.
+    expect(router.options.history.base).toBe('/toolbox')
+
+    expect(router.resolve('/calculator').href).toBe('/toolbox/calculator')
+    expect(router.resolve('/').href).toBe('/toolbox/')
+    expect(router.resolve('/settings').href).toBe('/toolbox/settings')
+  })
+
   it('creates one route with stable metadata for every registered tool', () => {
     const routes = router.getRoutes()
 

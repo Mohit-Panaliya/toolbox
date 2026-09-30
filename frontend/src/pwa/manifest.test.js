@@ -11,11 +11,12 @@ const MANIFEST_PATH = path.resolve(
 describe('Toolbox web manifest', () => {
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'))
 
-  // Toolbox owns the whole site, so an installed copy owns the whole origin.
-  it('installs at the site root', () => {
-    expect(manifest.id).toBe('/')
-    expect(manifest.start_url).toBe('/')
-    expect(manifest.scope).toBe('/')
+  // The app shares its origin with the other apps on the site, so an installed copy owns the
+  // prefix and not the origin. A manifest scoped to `/` would take over the host site's launcher.
+  it('installs at the application prefix', () => {
+    expect(manifest.id).toBe('/toolbox/')
+    expect(manifest.start_url).toBe('/toolbox/')
+    expect(manifest.scope).toBe('/toolbox/')
     expect(manifest.display).toBe('standalone')
   })
 

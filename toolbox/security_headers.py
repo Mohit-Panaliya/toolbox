@@ -15,12 +15,20 @@ so the answer arrives from the test suite rather than from production.
 Switch the header name to `Content-Security-Policy` once that spec has been quiet across a full
 run, and read `qa/README.md` before you do.
 
+**The policy is attached to Toolbox's own pages and nothing else.** `after_request` runs for every
+response on the site, and this app is one of several on it: a policy that describes Toolbox's
+bundles says nothing true about ERPNext's, and a report-only header nobody reads is only a header.
+`toolbox.routes.owns_path` is the test, so a new route is covered by naming it there and nowhere
+else.
+
 **One thing stands between this and enforcing, and it is issue #266.** frappe-ui bundles and starts
 a socket.io client that Toolbox has no feature for. It calls `Function("return this")` at module
 load, which counts as eval, and then tries to reach the realtime port. Both are reported on every
 route. The fix is to stop shipping the client rather than to add `unsafe-eval` and widen
 `connect-src`: allowing eval is most of what a policy is meant to prevent.
 """
+
+from toolbox.routes import owns_path
 
 # Everything Toolbox loads comes from its own origin. There are no web fonts, no analytics, no CDN
 # and no third-party script: the built HTML references no external host at all, and the provider
@@ -56,8 +64,13 @@ HEADER = "Content-Security-Policy-Report-Only"
 
 
 def add_security_headers(response=None, request=None) -> None:
-	"""Attach the policy to every HTML response. Registered as an `after_request` hook."""
+	"""Attach the policy to a Toolbox page. Registered as an `after_request` hook."""
 	if response is None or not _is_html(response):
+		return
+
+	# `after_request` covers the whole site, and this app is not the only one on it. A response
+	# for any other path keeps whatever headers its own app sets.
+	if not _is_toolbox_request(request):
 		return
 
 	# Never overwrite a policy set upstream. If the proxy grows one, that one wins.
@@ -65,6 +78,26 @@ def add_security_headers(response=None, request=None) -> None:
 		return
 
 	response.headers[HEADER] = build_policy()
+
+
+def _is_toolbox_request(request) -> bool:
+	"""Whether this response is for a page Toolbox serves.
+
+	Quiet on anything it cannot answer: no request, a request with no path, a path that is not one
+	of ours. A missing header is recoverable, and guessing wrong attaches Toolbox's policy to a page
+	it says nothing true about.
+	"""
+	if request is None:
+		return False
+
+	path = getattr(request, "path", None)
+	if not path:
+		return False
+
+	try:
+		return owns_path(path)
+	except Exception:
+		return False
 
 
 def build_policy() -> str:

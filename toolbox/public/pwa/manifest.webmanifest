@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "/toolbox/",
   "name": "Frappe Toolbox",
   "short_name": "Toolbox",
   "description": "Calculators, converters, lookups, and everyday utilities in one dependable workspace.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/toolbox/",
+  "scope": "/toolbox/",
   "display": "standalone",
   "background_color": "#f8f8f8",
   "theme_color": "#f8f8f8",

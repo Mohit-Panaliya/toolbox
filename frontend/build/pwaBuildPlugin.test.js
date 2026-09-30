@@ -46,12 +46,15 @@ describe('Toolbox PWA build plugin', () => {
     )
   })
 
-  it('reads the routes from the tool registry, and claims none of Frappe', async () => {
+  it('reads the routes from the tool registry, under the prefix, and claims no other app', async () => {
     const routes = await readAppRoutes()
 
-    expect(routes).toContain('/')
-    expect(routes).toContain('/calculator')
-    for (const reserved of ['/app', '/login', '/api']) expect(routes).not.toContain(reserved)
+    expect(routes).toContain('/toolbox')
+    expect(routes).toContain('/toolbox/calculator')
+    // The origin belongs to every app on the site, so the worker claims paths, not a prefix test.
+    for (const reserved of ['/app', '/login', '/api', '/', '/calculator']) {
+      expect(routes).not.toContain(reserved)
+    }
   })
 
   it('rejects a template with unresolved release placeholders', () => {
